@@ -147,7 +147,7 @@
 
         // --- FIREBASE LIVE DATABASE INTEGRATION ---
         // Products will be fetched dynamically via React state.
-        
+
         // Helper to format raw numeric string to string with comma thousands separator
         const formatNumberWithCommas = (str) => {
             if (!str) return '';
@@ -201,26 +201,26 @@
 
             // --- CATEGORY BUDGET STATE ---
             const CATEGORIES = [
-                { key: 'snacks',     label: 'Snacks',              emoji: '🍿', keywords: ['snack','chip','crisp','popcorn','pretzel'] },
-                { key: 'biscuits',   label: 'Biscuits & Cookies',  emoji: '🍪', keywords: ['biscuit','cookie','crackers','wafer'] },
-                { key: 'meat',       label: 'Meat & Poultry',      emoji: '🥩', keywords: ['meat','beef','pork','chicken','longganisa','tocino','hotdog','sausage'] },
-                { key: 'dairy',      label: 'Dairy & Eggs',        emoji: '🥛', keywords: ['milk','cheese','butter','yogurt','egg','cream'] },
-                { key: 'beverages',  label: 'Beverages',           emoji: '🥤', keywords: ['juice','water','soda','drink','cola','coffee','tea','energy'] },
-                { key: 'bread',      label: 'Bread & Pastry',      emoji: '🍞', keywords: ['bread','pandesal','loaf','bun','roll','cake','muffin','donut'] },
-                { key: 'noodles',    label: 'Noodles & Rice',      emoji: '🍜', keywords: ['noodle','pasta','spaghetti','rice','miki','bihon','sotanghon'] },
-                { key: 'canned',     label: 'Canned Goods',        emoji: '🥫', keywords: ['canned','corned','spam','tuna','sardines','luncheon'] },
-                { key: 'condiments', label: 'Condiments & Spices', emoji: '🧂', keywords: ['sauce','vinegar','soy','ketchup','sugar','salt','pepper','seasoning','oil','mayonnaise'] },
-                { key: 'personal',   label: 'Personal Care',       emoji: '🧴', keywords: ['soap','shampoo','toothpaste','lotion','deodorant','powder','cologne','tissue'] },
-                { key: 'cleaning',   label: 'Cleaning Supplies',   emoji: '🧹', keywords: ['detergent','bleach','fabric','softener','cleaner','dishwash'] },
-                { key: 'others',     label: 'Others',              emoji: '🛒', keywords: [] }
+                { key: 'snacks', label: 'Snacks', emoji: '🍿', keywords: ['snack', 'chip', 'crisp', 'popcorn', 'pretzel'] },
+                { key: 'biscuits', label: 'Biscuits & Cookies', emoji: '🍪', keywords: ['biscuit', 'cookie', 'crackers', 'wafer'] },
+                { key: 'meat', label: 'Meat & Poultry', emoji: '🥩', keywords: ['meat', 'beef', 'pork', 'chicken', 'longganisa', 'tocino', 'hotdog', 'sausage'] },
+                { key: 'dairy', label: 'Dairy & Eggs', emoji: '🥛', keywords: ['milk', 'cheese', 'butter', 'yogurt', 'egg', 'cream'] },
+                { key: 'beverages', label: 'Beverages', emoji: '🥤', keywords: ['juice', 'water', 'soda', 'drink', 'cola', 'coffee', 'tea', 'energy'] },
+                { key: 'bread', label: 'Bread & Pastry', emoji: '🍞', keywords: ['bread', 'pandesal', 'loaf', 'bun', 'roll', 'cake', 'muffin', 'donut'] },
+                { key: 'noodles', label: 'Noodles & Rice', emoji: '🍜', keywords: ['noodle', 'pasta', 'spaghetti', 'rice', 'miki', 'bihon', 'sotanghon'] },
+                { key: 'canned', label: 'Canned Goods', emoji: '🥫', keywords: ['canned', 'corned', 'spam', 'tuna', 'sardines', 'luncheon'] },
+                { key: 'condiments', label: 'Condiments & Spices', emoji: '🧂', keywords: ['sauce', 'vinegar', 'soy', 'ketchup', 'sugar', 'salt', 'pepper', 'seasoning', 'oil', 'mayonnaise'] },
+                { key: 'personal', label: 'Personal Care', emoji: '🧴', keywords: ['soap', 'shampoo', 'toothpaste', 'lotion', 'deodorant', 'powder', 'cologne', 'tissue'] },
+                { key: 'cleaning', label: 'Cleaning Supplies', emoji: '🧹', keywords: ['detergent', 'bleach', 'fabric', 'softener', 'cleaner', 'dishwash'] },
+                { key: 'others', label: 'Others', emoji: '🛒', keywords: [] }
             ];
 
-            const mkDefaultCatBudgets = () => CATEGORIES.reduce((a,c) => { a[c.key]=''; return a; }, {});
+            const mkDefaultCatBudgets = () => CATEGORIES.reduce((a, c) => { a[c.key] = ''; return a; }, {});
             const [categoryBudgets, setCategoryBudgets] = useLocalStorageState('cartpunch_monitor_catBudgets', mkDefaultCatBudgets());
             const [lastScannedCategory, setLastScannedCategory] = useState(null);
 
             const detectCategory = (productName) => {
-                const lower = (productName||'').toLowerCase();
+                const lower = (productName || '').toLowerCase();
                 for (const cat of CATEGORIES) {
                     if (cat.keywords.length > 0 && cat.keywords.some(kw => lower.includes(kw))) return cat;
                 }
@@ -230,7 +230,7 @@
             const getCategorySpent = (catKey) =>
                 cart.filter(item => detectCategory(item.name).key === catKey)
                     .reduce((sum, item) => sum + (item.price * item.qty), 0);
-            
+
             // --- STATE RECOVERY SAFETY NET ---
             useEffect(() => {
                 // If the user reloads the page, localStorage might restore them to a screen 
@@ -243,7 +243,7 @@
                     setScreen('scanning');
                 }
             }, [screen, scannedItem, cart, setScreen]);
-            
+
             // --- FIREBASE SYNC EFFECT ---
             useEffect(() => {
                 const productsRef = db.ref('products');
@@ -633,11 +633,10 @@
                         <div className="px-6 pb-6 pt-3 shrink-0 bg-[#FFF9F5] border-t border-orange-100">
                             <button
                                 onClick={handleFinalize}
-                                className={`w-full py-5 rounded-2xl font-bold text-xl transition-all shadow-lg ${
-                                    totalAllocated > 0
-                                        ? 'bg-orange-500 text-white shadow-orange-200 hover:bg-orange-600'
-                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                }`}
+                                className={`w-full py-5 rounded-2xl font-bold text-xl transition-all shadow-lg ${totalAllocated > 0
+                                    ? 'bg-orange-500 text-white shadow-orange-200 hover:bg-orange-600'
+                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    }`}
                             >
                                 Finalize Budget — ₱{formatNumberWithCommas(totalAllocated.toFixed(2))}
                             </button>

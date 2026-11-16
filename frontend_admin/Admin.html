@@ -87,7 +87,7 @@
         </div>
 
         <div class="p-6">
-            <button onclick="firebase.auth().signOut()"
+            <button onclick="sessionStorage.removeItem('cartpunch_2fa_verified'); firebase.auth().signOut()"
                 class="flex items-center space-x-2 text-white/90 hover:text-white transition-colors focus:outline-none">
                 <i data-lucide="log-out" class="w-5 h-5"></i>
                 <span class="font-medium text-sm">Logout</span>
@@ -735,19 +735,24 @@
         const auth = firebase.auth();
         const db = firebase.database();
 
-        // Enforce Authentication
+        // Enforce Authentication + 2FA Verification
         auth.onAuthStateChanged(user => {
-            if (!user) {
-                // Not logged in, redirect to login page
-                window.location.replace('Login.html');
+            const verifiedUid = sessionStorage.getItem('cartpunch_2fa_verified');
+            if (!user || verifiedUid !== user.uid) {
+                // Not logged in or 2FA OTP not completed, sign out and redirect to login
+                sessionStorage.removeItem('cartpunch_2fa_verified');
+                if (user) {
+                    auth.signOut().finally(() => window.location.replace('Login.html'));
+                } else {
+                    window.location.replace('Login.html');
+                }
             } else {
-                // Logged in, remove auth-guard and reveal the dashboard
+                // Logged in and 2FA verified, remove auth-guard and reveal the dashboard
                 const guard = document.getElementById('auth-guard');
                 if (guard) guard.remove();
                 document.body.style.display = '';
             }
         });
-
         let allProducts = [];
         let activityLogs = [];
 
