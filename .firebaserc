@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "cartpunch-a2267"
-  }
+  },
+  "targets": {
+    "cartpunch-a2267": {
+      "hosting": {
+        "admin": [
+          "cartpunch-a2267"
+        ],
+        "monitor": [
+          "cartpunch-monitor"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

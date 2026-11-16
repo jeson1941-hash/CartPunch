@@ -2,18 +2,36 @@
   "database": {
     "rules": "database.rules.json"
   },
-  "hosting": {
-    "public": "frontend_admin",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "rewrites": [
-      {
-        "source": "/",
-        "destination": "/Login.html"
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "admin",
+      "public": "frontend_admin",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/Login.html"
+        }
+      ]
+    },
+    {
+      "target": "monitor",
+      "public": "frontend_monitor",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/Monitor.html"
+        }
+      ]
+    }
+  ]
 }
