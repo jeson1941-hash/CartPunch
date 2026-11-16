@@ -1,0 +1,2193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CartPunch System</title>
+    
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    
+    <!-- Babel for in-browser JSX compilation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAnpeLs7fpfkWIxdlqttvd9N_kQM1fss0E",
+            authDomain: "cartpunch-a2267.firebaseapp.com",
+            databaseURL: "https://cartpunch-a2267-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "cartpunch-a2267",
+            storageBucket: "cartpunch-a2267.firebasestorage.app",
+            messagingSenderId: "413542821283",
+            appId: "1:413542821283:web:3bb97cdb6f8b54e774fe16",
+            measurementId: "G-85ZWVTWG67"
+        };
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+    </script>
+
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        /* Custom Scanner & Floating Animations */
+        @keyframes scan {
+            0% { top: 10%; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 90%; opacity: 0; }
+        }
+        @keyframes floatUp {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        @keyframes rowGlowYellow {
+            0%, 100% { background-color: rgba(254, 240, 138, 0.92); }
+            50% { background-color: rgba(253, 224, 71, 0.98); }
+        }
+        @keyframes rowGlowRed {
+            0%, 100% { background-color: rgba(254, 202, 202, 0.92); }
+            50% { background-color: rgba(252, 165, 165, 0.98); }
+        }
+        .animate-scan-line {
+            animation: scan 2s ease-in-out infinite;
+        }
+        .animate-float-up {
+            animation: floatUp 3s ease-in-out infinite;
+        }
+        .animate-row-yellow {
+            animation: rowGlowYellow 2.2s ease-in-out infinite;
+        }
+        .animate-row-red {
+            animation: rowGlowRed 1.7s ease-in-out infinite;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-neutral-200 m-0 p-0">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- GROCERY CATEGORIES & KEYWORD MAPPER ---
+        const CATEGORIES = [
+            'Canned Goods & Condiments',
+            'Instant Noodles',
+            'Beverages',
+            'Snacks & Chips',
+            'Biscuits & Cookies',
+            'Dairy & Coffee',
+            'Candies & Sweets'
+        ];
+
+        // Automatic categorization helper for Firebase products
+        const categorizeProduct = (productName, existingCategory) => {
+            if (existingCategory && CATEGORIES.includes(existingCategory)) {
+                return existingCategory;
+            }
+            const lower = (productName || '').toLowerCase();
+            if (lower.includes('canned') || lower.includes('sauce') || lower.includes('sardine') || lower.includes('tuna') || lower.includes('corned') || lower.includes('spam') || lower.includes('condiment') || lower.includes('vinegar') || lower.includes('soy') || lower.includes('oil') || lower.includes('dip') || lower.includes('ketchup') || lower.includes('mayo')) {
+                return 'Canned Goods & Condiments';
+            }
+            if (lower.includes('noodle') || lower.includes('ramen') || lower.includes('pancit') || lower.includes('canton') || lower.includes('pasta') || lower.includes('spaghetti') || lower.includes('mami') || lower.includes('soup')) {
+                return 'Instant Noodles';
+            }
+            if (lower.includes('drink') || lower.includes('juice') || lower.includes('water') || lower.includes('soda') || lower.includes('cola') || lower.includes('tea') || lower.includes('beverage') || lower.includes('beer')) {
+                return 'Beverages';
+            }
+            if (lower.includes('chip') || lower.includes('snack') || lower.includes('crisp') || lower.includes('popcorn') || lower.includes('pretzel') || lower.includes('piattos') || lower.includes('nova') || lower.includes('chippy') || lower.includes('cornick')) {
+                return 'Snacks & Chips';
+            }
+            if (lower.includes('biscuit') || lower.includes('cookie') || lower.includes('cracker') || lower.includes('wafer') || lower.includes('fita') || lower.includes('skyflakes') || lower.includes('oreo')) {
+                return 'Biscuits & Cookies';
+            }
+            if (lower.includes('coffee') || lower.includes('milk') || lower.includes('dairy') || lower.includes('cheese') || lower.includes('creamer') || lower.includes('butter') || lower.includes('nescafe') || lower.includes('great taste') || lower.includes('latte') || lower.includes('folgers')) {
+                return 'Dairy & Coffee';
+            }
+            if (lower.includes('candy') || lower.includes('sweet') || lower.includes('chocolate') || lower.includes('gummy') || lower.includes('lollipop') || lower.includes('caramel')) {
+                return 'Candies & Sweets';
+            }
+            return 'Snacks & Chips'; // Sensible default fallback
+        };
+
+        // Format numeric strings with comma separators
+        const formatNumberWithCommas = (str) => {
+            if (str === undefined || str === null || str === '') return '0';
+            const parts = str.toString().split('.');
+            parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+            return parts.join('.');
+        };
+
+        // --- SELF-CONTAINED SVG ICONS ---
+        const IconWrapper = ({ size = 24, strokeWidth = 2, className = "", children }) => (
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={size}
+                height={size}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={strokeWidth}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className={className}
+            >
+                {children}
+            </svg>
+        );
+
+        const ScanLine = (props) => (
+            <IconWrapper {...props}>
+                <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                <line x1="7" x2="17" y1="12" y2="12" />
+            </IconWrapper>
+        );
+
+        const ShoppingCart = (props) => (
+            <IconWrapper {...props}>
+                <circle cx="8" cy="21" r="1" />
+                <circle cx="19" cy="21" r="1" />
+                <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
+            </IconWrapper>
+        );
+
+        const ArrowLeft = (props) => (
+            <IconWrapper {...props}>
+                <path d="m12 19-7-7 7-7" />
+                <path d="M19 12H5" />
+            </IconWrapper>
+        );
+
+        const Plus = (props) => (
+            <IconWrapper {...props}>
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+            </IconWrapper>
+        );
+
+        const Minus = (props) => (
+            <IconWrapper {...props}>
+                <path d="M5 12h14" />
+            </IconWrapper>
+        );
+
+        const AlertCircle = (props) => (
+            <IconWrapper {...props}>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" x2="12" y1="8" y2="12" />
+                <line x1="12" x2="12.01" y1="16" y2="16" />
+            </IconWrapper>
+        );
+
+        const Keyboard = (props) => (
+            <IconWrapper {...props}>
+                <path d="M10 8h.01" />
+                <path d="M12 12h.01" />
+                <path d="M14 8h.01" />
+                <path d="M16 12h.01" />
+                <path d="M18 8h.01" />
+                <path d="M6 8h.01" />
+                <path d="M7 16h10" />
+                <path d="M8 12h.01" />
+                <rect width="20" height="16" x="2" y="4" rx="2" />
+            </IconWrapper>
+        );
+
+        const Type = (props) => (
+            <IconWrapper {...props}>
+                <polyline points="4 7 4 4 20 4 20 7" />
+                <line x1="9" x2="15" y1="20" y2="20" />
+                <line x1="12" x2="12" y1="4" y2="20" />
+            </IconWrapper>
+        );
+
+        const Delete = (props) => (
+            <IconWrapper {...props}>
+                <path d="M20 5H9l-7 7 7 7h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Z" />
+                <line x1="18" x2="12" y1="9" y2="15" />
+                <line x1="12" x2="18" y1="9" y2="15" />
+            </IconWrapper>
+        );
+
+        const CheckCircle2 = (props) => (
+            <IconWrapper {...props}>
+                <circle cx="12" cy="12" r="10" />
+                <path d="m9 12 2 2 4-4" />
+            </IconWrapper>
+        );
+
+        const ChevronDown = (props) => (
+            <IconWrapper {...props}>
+                <path d="m6 9 6 6 6-6" />
+            </IconWrapper>
+        );
+
+        const ChevronUp = (props) => (
+            <IconWrapper {...props}>
+                <path d="m18 15-6-6-6 6" />
+            </IconWrapper>
+        );
+
+        const Trash2 = (props) => (
+            <IconWrapper {...props}>
+                <path d="M3 6h18" />
+                <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                <line x1="10" x2="10" y1="11" y2="17" />
+                <line x1="14" x2="14" y1="11" y2="17" />
+            </IconWrapper>
+        );
+
+        const Barcode = (props) => (
+            <IconWrapper {...props}>
+                <path d="M3 5v14" />
+                <path d="M8 5v14" />
+                <path d="M12 5v14" />
+                <path d="M17 5v14" />
+                <path d="M21 5v14" />
+            </IconWrapper>
+        );
+
+        const BookOpen = (props) => (
+            <IconWrapper {...props}>
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </IconWrapper>
+        );
+
+        const X = (props) => (
+            <IconWrapper {...props}>
+                <path d="M18 6 6 18" />
+                <path d="m6 6 12 12" />
+            </IconWrapper>
+        );
+
+        const ShieldCheck = (props) => (
+            <IconWrapper {...props}>
+                <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" />
+                <path d="m9 12 2 2 4-4" />
+            </IconWrapper>
+        );
+
+        const Layers = (props) => (
+            <IconWrapper {...props}>
+                <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                <polyline points="2 17 12 22 22 17" />
+                <polyline points="2 12 12 17 22 12" />
+            </IconWrapper>
+        );
+
+        const Search = (props) => (
+            <IconWrapper {...props}>
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+            </IconWrapper>
+        );
+
+        // Sideways Battery Icon
+        const SidewaysBattery = () => (
+            <div className="flex items-center" title="Battery Status">
+                <div className="w-6 h-3 rounded-[3px] border-[1.5px] border-gray-600 p-[1.5px] flex items-center bg-white">
+                    <div className="h-full w-4/5 bg-emerald-500 rounded-[1px]"></div>
+                </div>
+                <div className="w-[2px] h-1.5 bg-gray-600 rounded-r-[1px] ml-[1px]"></div>
+            </div>
+        );
+
+        function App() {
+            // --- LIVE FIREBASE DATABASE PRODUCTS ---
+            const [products, setProducts] = useState([]);
+
+            // --- NAVIGATION & CORE STATE ---
+            const [screen, setScreen] = useState('splash1');
+            const [budgetMode, setBudgetMode] = useState('none'); // 'none' | 'single' | 'category'
+            const [budget, setBudget] = useState(0);
+            const [budgetInputStr, setBudgetInputStr] = useState('');
+
+            // Category Allocation State
+            const [allocations, setAllocations] = useState([]); // [{ id, category, amount }]
+            const [pendingCategory, setPendingCategory] = useState(CATEGORIES[0]);
+            const [isAllocKeypadOpen, setIsAllocKeypadOpen] = useState(false);
+            const [allocAmountStr, setAllocAmountStr] = useState('');
+            const [allocLimitNotice, setAllocLimitNotice] = useState('');
+            const [selectedCatInfo, setSelectedCatInfo] = useState(null);
+
+            // Cart & Scanning State
+            const [cart, setCart] = useState([]);
+            const [scannedItem, setScannedItem] = useState(null);
+            const [itemQty, setItemQty] = useState(1);
+            const [manualInputType, setManualInputType] = useState('barcode'); // 'barcode' | 'name'
+            const [manualInputValue, setManualInputValue] = useState('');
+            const [searchResults, setSearchResults] = useState([]);
+            const [isKeyboardVisible, setIsKeyboardVisible] = useState(true);
+            const [isOnline, setIsOnline] = useState(true);
+            const [scanNotice, setScanNotice] = useState('');
+
+            // Popups & Alerts
+            const [hasShown70Warning, setHasShown70Warning] = useState(false);
+            const [shownCategoryWarnings, setShownCategoryWarnings] = useState({});
+            const [popupAlert, setPopupAlert] = useState(null); // null | 'warning70' | 'limit'
+            const [alertMessage, setAlertMessage] = useState('');
+            const [returnScreen, setReturnScreen] = useState(null);
+            const [scanOrigin, setScanOrigin] = useState('scanning');
+
+            // Quantity Keypad Overlay State
+            const [isQtyPadVisible, setIsQtyPadVisible] = useState(false);
+            const [qtyInputStr, setQtyInputStr] = useState('1');
+            const [editingCartItemId, setEditingCartItemId] = useState(null);
+
+            // Thank You 10-second countdown
+            const [thankYouSeconds, setThankYouSeconds] = useState(10);
+
+            // Barcode hardware scanner buffer
+            const scanBufferRef = useRef('');
+            const scanTimerRef = useRef(null);
+
+            // --- SYNC LIVE PRODUCTS FROM FIREBASE REALTIME DATABASE ---
+            useEffect(() => {
+                const productsRef = db.ref('products');
+                productsRef.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    const loaded = [];
+                    if (data) {
+                        Object.keys(data).forEach(key => {
+                            const raw = data[key];
+                            const itemName = raw.name || raw.item_description || raw.description || 'Unknown Item';
+                            const itemPrice = parseFloat(raw.price !== undefined ? raw.price : raw.unit_price) || 0;
+                            const itemStock = raw.stock || 'High Stock';
+                            const cat = raw.category || categorizeProduct(itemName);
+                            loaded.push({
+                                id: String(raw.sku || key),
+                                name: itemName,
+                                price: itemPrice,
+                                stock: itemStock,
+                                category: cat
+                            });
+                        });
+                    }
+                    setProducts(loaded);
+                    setIsOnline(true);
+                }, (error) => {
+                    console.error("Firebase connection error:", error);
+                    setIsOnline(false);
+                });
+
+                return () => productsRef.off();
+            }, []);
+
+            // --- DERIVED CALCULATIONS ---
+            const allocatedTotal = allocations.reduce((sum, row) => sum + row.amount, 0);
+            const effectiveBudget = budgetMode === 'category' ? allocatedTotal : (budgetMode === 'single' ? budget : 0);
+            const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+
+            // Aggregate category budgets & spending
+            const getCategorySummaries = () => {
+                const map = {};
+                allocations.forEach(row => {
+                    if (!map[row.category]) {
+                        map[row.category] = { category: row.category, allocated: 0, spent: 0 };
+                    }
+                    map[row.category].allocated += row.amount;
+                });
+                cart.forEach(item => {
+                    const itemCat = item.category || categorizeProduct(item.name);
+                    if (map[itemCat]) {
+                        map[itemCat].spent += item.price * item.qty;
+                    }
+                });
+                return Object.values(map);
+            };
+
+            const categorySummaries = getCategorySummaries();
+
+            // --- AUTOMATIC BARCODE SCANNER LISTENER ON HOME SCREEN ---
+            useEffect(() => {
+                if (screen !== 'scanning' || popupAlert || isQtyPadVisible) return;
+
+                const handleKeyDown = (e) => {
+                    if (e.key === 'Enter') {
+                        const code = scanBufferRef.current.trim();
+                        scanBufferRef.current = '';
+                        if (code.length >= 4) {
+                            const found = products.find(i => i.id === code);
+                            if (found) {
+                                triggerItemScanned(found, 'scanning');
+                            } else {
+                                setScanNotice(`Barcode "${code}" not found in system.`);
+                            }
+                        }
+                        return;
+                    }
+                    if (e.key.length === 1) {
+                        scanBufferRef.current += e.key;
+                        clearTimeout(scanTimerRef.current);
+                        scanTimerRef.current = setTimeout(() => {
+                            scanBufferRef.current = '';
+                        }, 300);
+                    }
+                };
+
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, [screen, popupAlert, isQtyPadVisible, products]);
+
+            // Auto-clear scanner notice after 3 seconds
+            useEffect(() => {
+                if (!scanNotice) return;
+                const timer = setTimeout(() => setScanNotice(''), 3000);
+                return () => clearTimeout(timer);
+            }, [scanNotice]);
+
+            // --- THANK YOU 10-SECOND COUNTDOWN & AUTO-RESET ---
+            useEffect(() => {
+                if (screen !== 'thank_you') return;
+                setThankYouSeconds(10);
+
+                const interval = setInterval(() => {
+                    setThankYouSeconds(prev => {
+                        if (prev <= 1) {
+                            clearInterval(interval);
+                            resetApp();
+                            return 0;
+                        }
+                        return prev - 1;
+                    });
+                }, 1000);
+
+                return () => clearInterval(interval);
+            }, [screen]);
+
+            // --- MANUAL SEARCH FILTER ---
+            useEffect(() => {
+                if (!manualInputValue.trim()) {
+                    setSearchResults([]);
+                    return;
+                }
+                const lower = manualInputValue.toLowerCase();
+                const filtered = products.filter(item =>
+                    manualInputType === 'barcode'
+                        ? item.id.includes(lower)
+                        : item.name.toLowerCase().includes(lower)
+                );
+                setSearchResults(filtered);
+            }, [manualInputValue, manualInputType, products]);
+
+            // --- THEME ENGINE ---
+            const defaultTheme = {
+                bg: 'bg-[#FFF9F5]',
+                primary: 'bg-orange-500',
+                primaryHover: 'hover:bg-orange-600',
+                textTitle: 'text-orange-950',
+                textValue: 'text-orange-600',
+                iconBg: 'bg-orange-100',
+                iconColor: 'text-orange-600',
+                border: 'border-orange-100',
+                borderHighlight: 'border-orange-200',
+                shadow: 'shadow-orange-200',
+                softBg: 'bg-orange-50',
+                laserBg: 'bg-orange-500',
+                laserShadow: 'shadow-[0_0_20px_#f97316]',
+                hoverBorder: 'hover:border-orange-500',
+                hoverText: 'group-hover:text-orange-500'
+            };
+
+            const getThemeColors = () => {
+                const pct = (budgetMode !== 'none' && effectiveBudget > 0) ? (cartTotal / effectiveBudget) : 0;
+                if (pct >= 0.9) {
+                    return {
+                        bg: 'bg-red-50',
+                        primary: 'bg-red-500',
+                        primaryHover: 'hover:bg-red-600',
+                        textTitle: 'text-red-950',
+                        textValue: 'text-red-600',
+                        iconBg: 'bg-red-100',
+                        iconColor: 'text-red-600',
+                        border: 'border-red-100',
+                        borderHighlight: 'border-red-200',
+                        shadow: 'shadow-red-200',
+                        softBg: 'bg-red-50',
+                        laserBg: 'bg-red-500',
+                        laserShadow: 'shadow-[0_0_20px_#ef4444]',
+                        hoverBorder: 'hover:border-red-500',
+                        hoverText: 'group-hover:text-red-500'
+                    };
+                }
+                if (pct >= 0.7) {
+                    return {
+                        bg: 'bg-yellow-50',
+                        primary: 'bg-yellow-500',
+                        primaryHover: 'hover:bg-yellow-600',
+                        textTitle: 'text-yellow-900',
+                        textValue: 'text-yellow-700',
+                        iconBg: 'bg-yellow-100',
+                        iconColor: 'text-yellow-700',
+                        border: 'border-yellow-200',
+                        borderHighlight: 'border-yellow-300',
+                        shadow: 'shadow-yellow-200',
+                        softBg: 'bg-yellow-50',
+                        laserBg: 'bg-yellow-400',
+                        laserShadow: 'shadow-[0_0_20px_#facc15]',
+                        hoverBorder: 'hover:border-yellow-500',
+                        hoverText: 'group-hover:text-yellow-600'
+                    };
+                }
+                return defaultTheme;
+            };
+
+            const theme = getThemeColors();
+
+            // --- CORE ACTIONS ---
+            const resetApp = () => {
+                setCart([]);
+                setBudgetMode('none');
+                setBudget(0);
+                setBudgetInputStr('');
+                setAllocations([]);
+                setPendingCategory(CATEGORIES[0]);
+                setIsAllocKeypadOpen(false);
+                setAllocAmountStr('');
+                setAllocLimitNotice('');
+                setSelectedCatInfo(null);
+                setScannedItem(null);
+                setItemQty(1);
+                setManualInputValue('');
+                setIsKeyboardVisible(true);
+                setScanNotice('');
+                setHasShown70Warning(false);
+                setShownCategoryWarnings({});
+                setPopupAlert(null);
+                setAlertMessage('');
+                setReturnScreen(null);
+                setIsQtyPadVisible(false);
+                setEditingCartItemId(null);
+                setScreen('splash1');
+            };
+
+            const triggerItemScanned = (item, origin = 'scanning') => {
+                if (!item) return;
+                const withCat = {
+                    ...item,
+                    category: item.category || categorizeProduct(item.name)
+                };
+                setScannedItem(withCat);
+                setItemQty(1);
+                setScanOrigin(origin);
+                setScreen('item_scanned');
+            };
+
+            const handleAutomaticDemoScan = () => {
+                if (products.length === 0) {
+                    setScanNotice('No items loaded from database yet.');
+                    return;
+                }
+                const randomItem = products[Math.floor(Math.random() * products.length)];
+                triggerItemScanned(randomItem, 'scanning');
+            };
+
+            const addToCartState = (item, qty) => {
+                const existing = cart.find(i => i.id === item.id);
+                if (existing) {
+                    setCart(cart.map(i => i.id === item.id ? { ...i, qty: i.qty + qty } : i));
+                } else {
+                    setCart([...cart, { ...item, qty }]);
+                }
+            };
+
+            const handleAddToCart = () => {
+                if (!scannedItem) return;
+                const newItemTotal = scannedItem.price * itemQty;
+                const newCartTotal = cartTotal + newItemTotal;
+
+                // Check overall budget limit if active
+                if (budgetMode !== 'none' && effectiveBudget > 0 && newCartTotal > effectiveBudget) {
+                    setPopupAlert('limit');
+                    return;
+                }
+
+                addToCartState(scannedItem, itemQty);
+
+                // Check 70% overall warning
+                if (budgetMode !== 'none' && effectiveBudget > 0 && newCartTotal >= effectiveBudget * 0.7 && !hasShown70Warning) {
+                    setHasShown70Warning(true);
+                    setAlertMessage('You have reached 70% of your total budget. Spend wisely!');
+                    setPopupAlert('warning70');
+                    setScreen('scanning');
+                    return;
+                }
+
+                // Check 70% category warning when in category allocation mode
+                if (budgetMode === 'category') {
+                    const catSummary = categorySummaries.find(c => c.category === scannedItem.category);
+                    if (catSummary && catSummary.allocated > 0) {
+                        const newCatSpent = catSummary.spent + newItemTotal;
+                        const catPct = newCatSpent / catSummary.allocated;
+                        if (catPct >= 0.7 && !shownCategoryWarnings[scannedItem.category]) {
+                            setShownCategoryWarnings(prev => ({ ...prev, [scannedItem.category]: true }));
+                            setAlertMessage(`${scannedItem.category} has reached ${Math.round(catPct * 100)}% of its allocated budget!`);
+                            setPopupAlert('warning70');
+                            setScreen('scanning');
+                            return;
+                        }
+                    }
+                }
+
+                setScreen('scanning');
+            };
+
+            const updateCartItemQty = (itemId, delta) => {
+                const updated = cart
+                    .map(item => item.id === itemId ? { ...item, qty: item.qty + delta } : item)
+                    .filter(item => item.qty > 0);
+                setCart(updated);
+
+                const newTotal = updated.reduce((s, i) => s + (i.price * i.qty), 0);
+                if (budgetMode !== 'none' && effectiveBudget > 0 && newTotal < effectiveBudget * 0.7) {
+                    setHasShown70Warning(false);
+                }
+            };
+
+            const handleRemoveFromCart = (itemId) => {
+                const newCart = cart.filter(item => item.id !== itemId);
+                setCart(newCart);
+                const newTotal = newCart.reduce((s, i) => s + (i.price * i.qty), 0);
+                if (budgetMode !== 'none' && effectiveBudget > 0 && newTotal < effectiveBudget * 0.7) {
+                    setHasShown70Warning(false);
+                }
+            };
+
+            // --- PERSISTENT HEADER (ALL PAGES EXCEPT STARTUP & ENDING) ---
+            const showPersistentHeader = screen !== 'splash1' && screen !== 'thank_you';
+
+            const TopHeader = () => {
+                const displayBudget =
+                    screen === 'allocation_setup' || screen === 'allocation_select_category'
+                        ? allocatedTotal
+                        : effectiveBudget;
+                const hasBudgetDisplay =
+                    budgetMode !== 'none' ||
+                    screen === 'allocation_setup' ||
+                    screen === 'allocation_select_category';
+
+                return (
+                    <div className={`bg-white text-gray-800 pt-4 pb-3 px-5 flex justify-between items-center rounded-b-[1.5rem] shadow-sm border-b ${theme.border} z-20 relative shrink-0 transition-colors`}>
+                        {/* Left Side: Small CartPunch Logo & Small Name */}
+                        <div className="flex items-center space-x-2 shrink-0">
+                            <div className={`w-7 h-7 ${theme.iconBg} rounded-lg flex items-center justify-center transition-colors`}>
+                                <ScanLine size={16} className={theme.iconColor} />
+                            </div>
+                            <span className={`text-base font-black tracking-tight ${theme.textTitle} transition-colors`}>
+                                CartPunch
+                            </span>
+                        </div>
+
+                        {/* Right Side: Online/Offline + Sideways Battery on top, Total Budget below */}
+                        <div className="flex flex-col items-end min-w-0 ml-2">
+                            <div className="flex items-center space-x-2">
+                                <button
+                                    onClick={() => setIsOnline(!isOnline)}
+                                    className={`flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-colors ${
+                                        isOnline
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                            : 'bg-gray-100 text-gray-500 border-gray-200'
+                                    }`}
+                                >
+                                    <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`}></span>
+                                    <span>{isOnline ? 'Online' : 'Offline'}</span>
+                                </button>
+                                <SidewaysBattery />
+                            </div>
+
+                            {hasBudgetDisplay && (
+                                <div className="flex items-baseline space-x-1.5 mt-1">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Total Budget:</span>
+                                    <span className={`text-sm font-black ${theme.textValue} transition-colors`}>
+                                        ₱{formatNumberWithCommas(displayBudget.toFixed(2))}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                );
+            };
+
+            // =========================================================================
+            // SCREEN 1: STARTUP LOGO SCREEN (Stays until user touches anywhere)
+            // =========================================================================
+            const renderSplash1 = () => (
+                <div
+                    onClick={() => setScreen('privacy_consent')}
+                    className="flex flex-col items-center justify-center h-full bg-[#FFF9F5] text-gray-800 cursor-pointer select-none px-6"
+                >
+                    <div className="w-28 h-28 bg-orange-500 rounded-[35px] flex items-center justify-center mb-6 shadow-xl shadow-orange-200 animate-pulse">
+                        <ScanLine size={56} className="text-white" />
+                    </div>
+                    <h1 className="text-4xl font-bold tracking-wider text-orange-950">CartPunch</h1>
+                    <p className="text-orange-600/80 mt-2 tracking-widest text-sm uppercase font-bold">System</p>
+                    <p className="mt-14 text-xs font-bold uppercase tracking-widest text-orange-500/80 animate-bounce">
+                        Touch anywhere to start
+                    </p>
+                </div>
+            );
+
+            // =========================================================================
+            // SCREEN 1B: DATA PRIVACY & AUTO-DELETION NOTICE (Centered + Bottom Buttons)
+            // =========================================================================
+            const renderPrivacyConsent = () => (
+                <div className="flex flex-col flex-1 min-h-0 bg-[#FFF9F5]">
+                    {/* Centered Data Deletion Statement */}
+                    <div className="flex-1 flex flex-col items-center justify-center px-7 text-center overflow-y-auto">
+                        <div className="w-20 h-20 bg-white shadow-sm border border-orange-100 rounded-full flex items-center justify-center mb-5 shrink-0">
+                            <ShieldCheck size={42} className="text-orange-500" />
+                        </div>
+                        <h2 className="text-2xl font-extrabold text-gray-800 mb-3">Privacy & Data Notice</h2>
+                        <div className="bg-white/95 p-6 rounded-[1.75rem] shadow-sm border border-orange-100 max-w-sm w-full">
+                            <p className="text-base font-bold text-gray-800 leading-relaxed">
+                                All the data collected will be automatically deleted right after you use the device.
+                            </p>
+                            <p className="text-xs font-medium text-gray-500 mt-3 leading-relaxed">
+                                Your scanned items, budget settings, and cart records are cleared immediately once your session finishes.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Disagree & Agree Buttons pinned at the very bottom */}
+                    <div className="mt-auto bg-white p-4 rounded-t-[2rem] shadow-[0_-8px_30px_rgba(0,0,0,0.05)] border-t border-orange-100 flex space-x-3 shrink-0">
+                        <button
+                            onClick={() => setScreen('splash1')}
+                            className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-2xl font-bold text-base hover:bg-gray-200 active:scale-95 transition-all"
+                        >
+                            Disagree
+                        </button>
+                        <button
+                            onClick={() => setScreen('tutorial')}
+                            className="flex-1 py-4 bg-orange-500 text-white rounded-2xl font-bold text-base shadow-lg shadow-orange-200 hover:bg-orange-600 active:scale-95 transition-all"
+                        >
+                            Agree
+                        </button>
+                    </div>
+                </div>
+            );
+
+            // =========================================================================
+            // SCREEN 2: CONCISE INSTRUCTIONS
+            // =========================================================================
+            const renderTutorial = () => (
+                <div className="flex flex-col flex-1 min-h-0 bg-orange-50 overflow-hidden relative">
+                    <div className="bg-orange-500 py-4 px-6 rounded-b-[2rem] shadow-md relative z-10 shrink-0">
+                        <div className="flex items-center justify-center space-x-2.5">
+                            <BookOpen className="text-white" size={24} />
+                            <h2 className="text-xl font-bold text-white tracking-wide text-center">Quick Guide</h2>
+                        </div>
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-between px-5 py-4 z-10 relative overflow-y-auto">
+                        <div className="space-y-2.5">
+                            {[
+                                "Choose a one-time budget, set per-category budgets, or skip.",
+                                "Scan items automatically with the barcode scanner or use Manual Search.",
+                                "Adjust item quantities when scanned or inside Your Cart.",
+                                "Review your list in Finish Up and complete checkout."
+                            ].map((step, i) => (
+                                <div key={i} className="flex items-center space-x-3 bg-white/95 p-3 rounded-2xl shadow-sm border border-orange-100">
+                                    <div className="bg-orange-100 text-orange-600 font-black w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-sm">
+                                        {i + 1}
+                                    </div>
+                                    <p className="text-xs font-bold text-gray-700 leading-snug">
+                                        {step}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="mt-3 bg-white/90 p-3 rounded-2xl border border-blue-100 shadow-sm shrink-0">
+                            <p className="text-blue-800 font-bold text-[11px] text-center leading-snug">
+                                Offline? CartPunch saves your items locally so your trip stays on track.
+                            </p>
+                        </div>
+
+                        <button
+                            onClick={() => setScreen('budget_prompt')}
+                            className="w-full mt-3 py-4 bg-orange-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-orange-200 hover:bg-orange-600 active:scale-95 transition-all shrink-0"
+                        >
+                            Understood
+                        </button>
+                    </div>
+                </div>
+            );
+
+            // =========================================================================
+            // SCREEN 3: BUDGET CHOICE (3 OPTIONS)
+            // =========================================================================
+            const renderBudgetPrompt = () => (
+                <div className="flex flex-col flex-1 min-h-0 bg-[#FFF9F5] items-center justify-center px-6 py-4 overflow-y-auto">
+                    <div className="w-20 h-20 bg-white shadow-sm border border-orange-100 rounded-full flex items-center justify-center mb-5 shrink-0">
+                        <ShoppingCart size={40} className="text-orange-500" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-center mb-2 text-gray-800">Set a Budget?</h2>
+                    <p className="text-gray-500 text-center mb-7 text-sm max-w-xs">
+                        Track your spending with a single overall limit or allocate budgets per grocery category.
+                    </p>
+
+                    <div className="w-full space-y-3 max-w-sm">
+                        <button
+                            onClick={() => {
+                                setBudgetMode('single');
+                                setBudgetInputStr(budget > 0 ? budget.toString() : '');
+                                setScreen('budget_input');
+                            }}
+                            className="w-full py-4 bg-orange-500 text-white rounded-2xl font-bold text-base shadow-lg shadow-orange-200 hover:bg-orange-600 active:scale-95 transition-all"
+                        >
+                            Set One-Time Budget
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                setBudgetMode('category');
+                                setAllocLimitNotice('');
+                                setScreen('allocation_setup');
+                            }}
+                            className="w-full py-4 bg-white text-orange-600 border-2 border-orange-400 rounded-2xl font-bold text-base shadow-sm hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center space-x-2"
+                        >
+                            <Layers size={20} />
+                            <span>Budget with Category Allocation</span>
+                        </button>
+
+                        <button
+                            onClick={() => {
+                                setBudgetMode('none');
+                                setScreen('scanning');
+                            }}
+                            className="w-full py-4 bg-white text-gray-600 border-2 border-gray-200 rounded-2xl font-bold text-base hover:bg-gray-50 active:scale-95 transition-all"
+                        >
+                            No, skip for now
+                        </button>
+                    </div>
+                </div>
+            );
+
+            // =========================================================================
+            // SCREEN 4: ONE-TIME MAX BUDGET INPUT
+            // =========================================================================
+            const renderBudgetInput = () => {
+                const budgetNumericKeys = [
+                    ['1', '2', '3'],
+                    ['4', '5', '6'],
+                    ['7', '8', '9'],
+                    ['', '0', 'DEL']
+                ];
+
+                const handleBudgetKey = (key) => {
+                    if (key === 'DEL') {
+                        setBudgetInputStr(prev => prev.slice(0, -1));
+                    } else if (key !== '') {
+                        if (budgetInputStr.length >= 8) return;
+                        setBudgetInputStr(prev => prev + key);
+                    }
+                };
+
+                return (
+                    <div className={`flex flex-col flex-1 min-h-0 ${defaultTheme.bg}`}>
+                        <div className="px-6 pt-4 shrink-0">
+                            <button
+                                onClick={() => setScreen(returnScreen || 'budget_prompt')}
+                                className="p-2.5 bg-white rounded-full shadow-sm text-gray-600 border border-orange-50 w-fit"
+                            >
+                                <ArrowLeft size={22} />
+                            </button>
+                        </div>
+
+                        <div className="px-6 flex-1 flex flex-col justify-center pb-5 max-w-md mx-auto w-full min-h-0">
+                            <h2 className="text-2xl font-bold mb-1 text-gray-800">Max Budget</h2>
+                            <p className="text-gray-500 mb-4 text-sm">Enter your overall spending limit.</p>
+
+                            <div className="relative mb-5 shrink-0 flex items-center overflow-hidden rounded-2xl bg-white border-2 border-orange-100 focus-within:border-orange-500 shadow-sm px-5">
+                                <span className="pr-2 text-2xl font-bold text-orange-300">₱</span>
+                                <div className="flex flex-1 items-center overflow-hidden whitespace-nowrap">
+                                    <span className={`text-4xl font-bold py-4 outline-none cursor-default ${!budgetInputStr ? 'text-gray-300' : 'text-gray-800'}`}>
+                                        {budgetInputStr ? formatNumberWithCommas(budgetInputStr) : '0'}
+                                    </span>
+                                    <div className={`w-0.5 h-8 ${defaultTheme.primary} animate-pulse ml-1 shrink-0`}></div>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col space-y-2 max-w-[300px] mx-auto mb-5 w-full shrink-0">
+                                {budgetNumericKeys.map((row, rowIndex) => (
+                                    <div key={rowIndex} className="flex justify-center space-x-2 w-full">
+                                        {row.map(key =>
+                                            key === '' ? (
+                                                <div key="blank" className="flex-1"></div>
+                                            ) : (
+                                                <button
+                                                    key={key}
+                                                    onClick={() => handleBudgetKey(key)}
+                                                    className={`h-12 flex-1 rounded-xl shadow-[0_2px_0_rgba(0,0,0,0.05)] active:scale-95 transition-all flex items-center justify-center text-xl font-bold border border-gray-100 ${
+                                                        key === 'DEL'
+                                                            ? 'bg-gray-100 text-gray-700'
+                                                            : 'bg-white text-gray-800 hover:bg-orange-50'
+                                                    }`}
+                                                >
+                                                    {key === 'DEL' ? <Delete size={20} /> : key}
+                                                </button>
+                                            )
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+
+                            <button
+                                onClick={() => {
+                                    const num = parseFloat(budgetInputStr);
+                                    if (num > 0) {
+                                        setBudget(num);
+                                        setBudgetMode('single');
+                                        setHasShown70Warning(false);
+                                        setScreen(returnScreen || 'scanning');
+                                        setReturnScreen(null);
+                                    }
+                                }}
+                                className={`w-full py-4 rounded-2xl font-bold text-lg transition-all shrink-0 ${
+                                    parseFloat(budgetInputStr) > 0
+                                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-200 hover:bg-orange-600'
+                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
+                            >
+                                Confirm Budget
+                            </button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // =========================================================================
+            // SCREEN 4B: CATEGORY BUDGET ALLOCATION PAGE (Opens first in allocation flow)
+            // =========================================================================
+            const renderAllocationSetup = () => {
+                const countForCategory = (cat) => allocations.filter(a => a.category === cat).length;
+
+                const handleOpenCategoryPicker = () => {
+                    const available = CATEGORIES.find(c => countForCategory(c) < 3);
+                    if (!available) {
+                        setAllocLimitNotice('Maximum limit reached across all categories.');
+                        return;
+                    }
+                    setPendingCategory(available);
+                    setAllocLimitNotice('');
+                    setScreen('allocation_select_category');
+                };
+
+                const handleRemoveAllocationRow = (rowId) => {
+                    setAllocations(prev => prev.filter(r => r.id !== rowId));
+                    setAllocLimitNotice('');
+                };
+
+                const handleSaveAllocationAmount = () => {
+                    const num = parseFloat(allocAmountStr);
+                    if (!num || num <= 0) return;
+
+                    if (countForCategory(pendingCategory) >= 3) {
+                        setAllocLimitNotice(`"${pendingCategory}" can only be added 3 times.`);
+                        return;
+                    }
+
+                    const newRow = {
+                        id: Date.now() + Math.random(),
+                        category: pendingCategory,
+                        amount: num
+                    };
+                    setAllocations(prev => [...prev, newRow]);
+                    setAllocAmountStr('');
+                    setIsAllocKeypadOpen(false);
+                    setAllocLimitNotice('');
+                };
+
+                const allocKeypadRows = [
+                    ['1', '2', '3'],
+                    ['4', '5', '6'],
+                    ['7', '8', '9'],
+                    ['C', '0', 'DEL']
+                ];
+
+                const handleAllocKey = (key) => {
+                    if (key === 'C') {
+                        setAllocAmountStr('');
+                    } else if (key === 'DEL') {
+                        setAllocAmountStr(prev => prev.slice(0, -1));
+                    } else {
+                        if (allocAmountStr.length >= 7) return;
+                        setAllocAmountStr(prev => (prev === '0' ? key : prev + key));
+                    }
+                };
+
+                return (
+                    <div className="flex flex-col flex-1 min-h-0 bg-[#FFF9F5] relative">
+                        {/* Top Bar */}
+                        <div className="px-5 pt-4 pb-2 flex items-center justify-between shrink-0">
+                            <button
+                                onClick={() => {
+                                    setAllocations([]);
+                                    setAllocAmountStr('');
+                                    setIsAllocKeypadOpen(false);
+                                    setAllocLimitNotice('');
+                                    setBudgetMode('none');
+                                    setScreen('budget_prompt');
+                                }}
+                                className="flex items-center space-x-1.5 px-3.5 py-2 bg-white rounded-full shadow-sm border border-orange-100 text-gray-700 font-bold text-sm hover:bg-orange-50 active:scale-95 transition-all"
+                            >
+                                <ArrowLeft size={18} />
+                                <span>Back</span>
+                            </button>
+                            <h2 className="text-lg font-extrabold text-gray-800">Category Budget</h2>
+                            <div className="w-16"></div>
+                        </div>
+
+                        {/* Scrollable Body */}
+                        <div className="flex-1 overflow-y-auto px-5 py-2 space-y-3">
+                            {allocLimitNotice && (
+                                <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-bold px-3.5 py-2.5 rounded-xl text-center">
+                                    {allocLimitNotice}
+                                </div>
+                            )}
+
+                            {/* Rows Table */}
+                            <div className="bg-white/95 rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
+                                <div className="grid grid-cols-12 bg-orange-50/90 px-3 py-2.5 text-[11px] font-extrabold text-orange-900 uppercase tracking-wider border-b border-orange-100">
+                                    <div className="col-span-1 text-center">#</div>
+                                    <div className="col-span-6 pl-1">Category</div>
+                                    <div className="col-span-4 text-right pr-2">Budget</div>
+                                    <div className="col-span-1"></div>
+                                </div>
+
+                                {allocations.length === 0 ? (
+                                    <div className="py-10 px-4 text-center text-gray-400">
+                                        <Layers size={36} className="mx-auto mb-2 opacity-40 text-orange-400" />
+                                        <p className="text-sm font-bold text-gray-500">No categories added yet</p>
+                                        <p className="text-xs mt-1">Tap "+ Add Category" below to begin.</p>
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-gray-100">
+                                        {allocations.map((row, idx) => (
+                                            <div key={row.id} className="grid grid-cols-12 items-center px-3 py-3 text-sm hover:bg-orange-50/40 transition-colors">
+                                                <div className="col-span-1 text-center font-extrabold text-orange-600 text-xs">
+                                                    {idx + 1}
+                                                </div>
+                                                <div className="col-span-6 pl-1 font-bold text-gray-800 text-xs leading-snug pr-1">
+                                                    {row.category}
+                                                </div>
+                                                <div className="col-span-4 text-right pr-2 font-black text-gray-900 text-xs">
+                                                    ₱{formatNumberWithCommas(row.amount.toFixed(2))}
+                                                </div>
+                                                <div className="col-span-1 flex justify-end">
+                                                    <button
+                                                        onClick={() => handleRemoveAllocationRow(row.id)}
+                                                        aria-label="Remove category"
+                                                        className="w-6 h-6 rounded-full bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center active:scale-90 transition-all"
+                                                    >
+                                                        <X size={13} strokeWidth={2.5} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* + Add Category Button */}
+                            <button
+                                onClick={handleOpenCategoryPicker}
+                                className="w-full py-3.5 bg-white border-2 border-dashed border-orange-300 text-orange-600 rounded-2xl font-bold text-sm hover:bg-orange-50 active:scale-95 transition-all flex items-center justify-center space-x-2 shadow-sm"
+                            >
+                                <Plus size={18} strokeWidth={2.5} />
+                                <span>+ Add Category</span>
+                            </button>
+                        </div>
+
+                        {/* Bottom Continue Button */}
+                        <div className="mt-auto bg-white p-4 rounded-t-[2rem] shadow-[0_-8px_30px_rgba(0,0,0,0.05)] border-t border-orange-100 shrink-0">
+                            <button
+                                onClick={() => {
+                                    if (allocations.length === 0) {
+                                        setAllocLimitNotice('Please add at least one category budget before continuing.');
+                                        return;
+                                    }
+                                    setBudgetMode('category');
+                                    setHasShown70Warning(false);
+                                    setShownCategoryWarnings({});
+                                    setScreen('scanning');
+                                }}
+                                className={`w-full py-4 rounded-2xl font-bold text-lg transition-all ${
+                                    allocations.length > 0
+                                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-200 hover:bg-orange-600 active:scale-95'
+                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
+                            >
+                                Continue
+                            </button>
+                        </div>
+
+                        {/* Budget Keypad Popup */}
+                        {isAllocKeypadOpen && (
+                            <div className="absolute inset-0 bg-black/50 backdrop-blur-xs z-40 flex items-end justify-center p-3 animate-in fade-in duration-200">
+                                <div className="bg-white w-full rounded-[2rem] p-5 shadow-2xl border-2 border-orange-200">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-extrabold uppercase tracking-wider text-orange-600">
+                                            Set Category Budget
+                                        </span>
+                                        <button
+                                            onClick={() => {
+                                                setIsAllocKeypadOpen(false);
+                                                setAllocAmountStr('');
+                                            }}
+                                            className="p-1.5 rounded-full bg-gray-100 text-gray-500 hover:bg-gray-200"
+                                        >
+                                            <X size={16} />
+                                        </button>
+                                    </div>
+
+                                    <div className="mb-3">
+                                        <h3 className="text-base font-bold text-gray-800 mb-1.5 truncate">
+                                            {pendingCategory}
+                                        </h3>
+                                        <div className="relative">
+                                            <select
+                                                value={pendingCategory}
+                                                onChange={(e) => {
+                                                    setPendingCategory(e.target.value);
+                                                    setAllocLimitNotice('');
+                                                }}
+                                                className="w-full appearance-none bg-orange-50/70 border border-orange-200 text-gray-800 text-xs font-bold rounded-xl px-3.5 py-2.5 pr-8 focus:outline-none focus:border-orange-500"
+                                            >
+                                                {CATEGORIES.map(cat => {
+                                                    const used = countForCategory(cat);
+                                                    return (
+                                                        <option key={cat} value={cat} disabled={used >= 3 && cat !== pendingCategory}>
+                                                            {cat} {used >= 3 ? '(Max reached)' : ''}
+                                                        </option>
+                                                    );
+                                                })}
+                                            </select>
+                                            <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-orange-600 pointer-events-none" />
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-center bg-gray-50 border-2 border-orange-200 rounded-2xl px-4 py-3 mb-3">
+                                        <span className="text-xl font-bold text-orange-400 mr-2">₱</span>
+                                        <span className={`text-3xl font-black ${allocAmountStr ? 'text-gray-900' : 'text-gray-300'}`}>
+                                            {allocAmountStr ? formatNumberWithCommas(allocAmountStr) : '0'}
+                                        </span>
+                                        <span className="w-0.5 h-7 bg-orange-500 animate-pulse ml-1"></span>
+                                    </div>
+
+                                    <div className="space-y-1.5 mb-3">
+                                        {allocKeypadRows.map((row, rIdx) => (
+                                            <div key={rIdx} className="flex space-x-1.5">
+                                                {row.map(k => (
+                                                    <button
+                                                        key={k}
+                                                        onClick={() => handleAllocKey(k)}
+                                                        className={`h-11 flex-1 rounded-xl font-bold text-lg border border-gray-100 active:scale-95 transition-all flex items-center justify-center ${
+                                                            k === 'DEL' || k === 'C'
+                                                                ? 'bg-gray-100 text-gray-700 text-sm'
+                                                                : 'bg-white text-gray-800 hover:bg-orange-50 shadow-xs'
+                                                        }`}
+                                                    >
+                                                        {k === 'DEL' ? <Delete size={18} /> : k}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <button
+                                        onClick={handleSaveAllocationAmount}
+                                        className={`w-full py-3.5 rounded-2xl font-bold text-base transition-all ${
+                                            parseFloat(allocAmountStr) > 0
+                                                ? 'bg-orange-500 text-white shadow-md shadow-orange-200 hover:bg-orange-600 active:scale-95'
+                                                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                        }`}
+                                    >
+                                        OK
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            };
+
+            // =========================================================================
+            // SCREEN 4C: SELECT CATEGORY PAGE
+            // =========================================================================
+            const renderAllocationSelectCategory = () => {
+                const countForCategory = (cat) => allocations.filter(a => a.category === cat).length;
+
+                return (
+                    <div className="flex flex-col flex-1 min-h-0 bg-[#FFF9F5]">
+                        <div className="px-5 pt-4 pb-2 flex items-center justify-between shrink-0">
+                            <button
+                                onClick={() => setScreen('allocation_setup')}
+                                className="flex items-center space-x-1.5 px-3.5 py-2 bg-white rounded-full shadow-sm border border-orange-100 text-gray-700 font-bold text-sm hover:bg-orange-50 active:scale-95 transition-all"
+                            >
+                                <ArrowLeft size={18} />
+                                <span>Back</span>
+                            </button>
+                            <h2 className="text-lg font-extrabold text-gray-800">Select Category</h2>
+                            <div className="w-16"></div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2.5">
+                            {CATEGORIES.map(cat => {
+                                const usedCount = countForCategory(cat);
+                                const isMaxed = usedCount >= 3;
+                                const isSelected = pendingCategory === cat && !isMaxed;
+
+                                return (
+                                    <button
+                                        key={cat}
+                                        disabled={isMaxed}
+                                        onClick={() => setPendingCategory(cat)}
+                                        className={`w-full py-4 px-4 rounded-2xl font-bold text-sm text-center transition-all border-2 ${
+                                            isMaxed
+                                                ? 'bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                                                : isSelected
+                                                    ? 'bg-orange-500 border-orange-500 text-white shadow-md shadow-orange-200 scale-[1.01]'
+                                                    : 'bg-white border-orange-100 text-gray-800 hover:border-orange-300'
+                                        }`}
+                                    >
+                                        {cat}
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <div className="mt-auto bg-white p-4 rounded-t-[2rem] shadow-[0_-8px_30px_rgba(0,0,0,0.05)] border-t border-orange-100 shrink-0">
+                            <button
+                                onClick={() => {
+                                    if (!pendingCategory || countForCategory(pendingCategory) >= 3) return;
+                                    setAllocAmountStr('');
+                                    setIsAllocKeypadOpen(true);
+                                    setScreen('allocation_setup');
+                                }}
+                                className={`w-full py-4 rounded-2xl font-bold text-lg transition-all ${
+                                    pendingCategory && countForCategory(pendingCategory) < 3
+                                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-200 hover:bg-orange-600 active:scale-95'
+                                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                }`}
+                            >
+                                Continue
+                            </button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // =========================================================================
+            // SCREEN 5: HOME PAGE (SCANNING / CATEGORY BUDGETS TABLE + MANUAL SEARCH)
+            // =========================================================================
+            const renderScanning = () => {
+                const isCategoryMode = budgetMode === 'category';
+
+                return (
+                    <div className={`flex flex-col flex-1 min-h-0 ${theme.bg} relative transition-colors duration-500`}>
+                        <div className="flex-1 flex flex-col justify-center px-5 py-3 min-h-0 overflow-hidden">
+                            {scanNotice && (
+                                <div className="mb-2.5 px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold text-center shadow-2xs shrink-0">
+                                    {scanNotice}
+                                </div>
+                            )}
+                            {isCategoryMode ? (
+                                <div className="flex flex-col w-full my-auto">
+                                    {/* Active Auto-Scanner Status Strip (tappable for demo scan) */}
+                                    <div
+                                        onClick={handleAutomaticDemoScan}
+                                        title="Scanner module connected — tap to test scan"
+                                        className="mb-3 px-4 py-2 rounded-2xl bg-white/75 backdrop-blur-xs border border-orange-200/80 flex items-center justify-between cursor-pointer hover:bg-white transition-all shadow-2xs"
+                                    >
+                                        <div className="flex items-center space-x-2">
+                                            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                                            <span className="text-xs font-extrabold text-gray-700 tracking-wide">
+                                                Auto-Scanner Ready ({products.length} Products)
+                                            </span>
+                                        </div>
+                                        <span className="text-[11px] font-bold text-orange-600 flex items-center space-x-1">
+                                            <Barcode size={15} />
+                                            <span>Scan Item</span>
+                                        </span>
+                                    </div>
+
+                                    {/* Enlarged Transparent-White Scrollable Table */}
+                                    <div className="bg-white/75 backdrop-blur-md rounded-[1.75rem] border-2 border-white shadow-lg overflow-hidden">
+                                        <div className="px-4 py-3 bg-white/60 border-b border-gray-200/70 flex items-center justify-between">
+                                            <span className="text-xs font-black uppercase tracking-wider text-gray-800">
+                                                Category Budgets
+                                            </span>
+                                            <span className="text-[11px] font-bold text-gray-500">
+                                                Spent / Limit
+                                            </span>
+                                        </div>
+
+                                        <div className="max-h-[252px] overflow-y-auto divide-y divide-gray-200/60">
+                                            {categorySummaries.map((catObj) => {
+                                                const pct = catObj.allocated > 0 ? (catObj.spent / catObj.allocated) : 0;
+                                                const pctClamped = Math.min(100, Math.round(pct * 100));
+                                                const remaining = catObj.allocated - catObj.spent;
+
+                                                let rowStyle = 'bg-white/70 text-gray-900';
+                                                let barColor = 'bg-emerald-500';
+                                                let badgeText = `${pctClamped}%`;
+                                                let badgeClass = 'bg-gray-100 text-gray-700';
+
+                                                if (pct >= 0.9) {
+                                                    rowStyle = 'animate-row-red text-gray-950';
+                                                    barColor = 'bg-red-600';
+                                                    badgeClass = 'bg-red-600 text-white';
+                                                } else if (pct >= 0.7) {
+                                                    rowStyle = 'animate-row-yellow text-gray-950';
+                                                    barColor = 'bg-amber-500';
+                                                    badgeClass = 'bg-amber-500 text-gray-950';
+                                                }
+
+                                                return (
+                                                    <div
+                                                        key={catObj.category}
+                                                        onClick={() => setSelectedCatInfo(selectedCatInfo === catObj.category ? null : catObj.category)}
+                                                        className={`h-[84px] px-4 flex flex-col justify-center cursor-pointer transition-all duration-300 ${rowStyle}`}
+                                                    >
+                                                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                                                            <span className="font-extrabold text-sm text-gray-900 truncate">
+                                                                {catObj.category}
+                                                            </span>
+                                                            <span className={`text-[11px] font-black px-2 py-0.5 rounded-full shrink-0 ${badgeClass}`}>
+                                                                {badgeText}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="flex items-baseline justify-between text-xs font-extrabold text-gray-900 mb-1.5">
+                                                            <span>
+                                                                ₱{formatNumberWithCommas(catObj.spent.toFixed(2))}{' '}
+                                                                <span className="font-semibold text-gray-700">
+                                                                    / ₱{formatNumberWithCommas(catObj.allocated.toFixed(2))}
+                                                                </span>
+                                                            </span>
+                                                            <span className={`text-[11px] font-extrabold ${remaining < 0 ? 'text-red-800' : 'text-gray-800'}`}>
+                                                                {remaining < 0
+                                                                    ? `Over ₱${formatNumberWithCommas(Math.abs(remaining).toFixed(2))}`
+                                                                    : `Left ₱${formatNumberWithCommas(remaining.toFixed(2))}`}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="w-full h-2 bg-black/10 rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                                                                style={{ width: `${pctClamped}%` }}
+                                                            ></div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    {/* Separate Manual Search Button */}
+                                    <button
+                                        onClick={() => {
+                                            setManualInputValue('');
+                                            setIsKeyboardVisible(true);
+                                            setScreen('manual_input');
+                                        }}
+                                        className="mt-4 w-full py-4 bg-white border-2 border-orange-200 text-gray-800 rounded-2xl font-extrabold text-base shadow-md hover:border-orange-500 hover:text-orange-600 active:scale-95 transition-all flex items-center justify-center space-x-2.5"
+                                    >
+                                        <Search size={20} className="text-orange-500" />
+                                        <span>Manual Search</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center my-auto">
+                                    <div
+                                        onClick={handleAutomaticDemoScan}
+                                        className={`w-full max-w-[270px] aspect-square rounded-[2.5rem] border-4 border-dashed ${theme.borderHighlight} flex flex-col items-center justify-center bg-white shadow-sm relative overflow-hidden cursor-pointer ${theme.hoverBorder} transition-colors group animate-float-up`}
+                                    >
+                                        <div className={`absolute top-0 left-0 w-full h-1.5 ${theme.laserBg} opacity-80 ${theme.laserShadow} animate-scan-line`}></div>
+                                        <Barcode size={84} className={`text-gray-300 ${theme.hoverText} transition-colors mb-4 animate-pulse`} />
+                                        <p className="text-gray-700 font-bold text-lg text-center px-4 leading-snug">
+                                            Waiting for the item to be scanned
+                                        </p>
+                                    </div>
+
+                                    <button
+                                        onClick={() => {
+                                            setManualInputValue('');
+                                            setIsKeyboardVisible(true);
+                                            setScreen('manual_input');
+                                        }}
+                                        className="mt-6 w-full max-w-[270px] py-4 bg-white border-2 border-gray-200 text-gray-800 rounded-2xl font-extrabold text-base shadow-sm hover:border-orange-400 hover:text-orange-600 active:scale-95 transition-all flex items-center justify-center space-x-2.5"
+                                    >
+                                        <Search size={20} className="text-orange-500" />
+                                        <span>Manual Search</span>
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Bottom Navigation Actions */}
+                        <div className={`bg-white p-4 rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] flex justify-between space-x-3 border-t ${theme.border} relative z-10 shrink-0 transition-colors`}>
+                            <button
+                                onClick={() => setScreen('cart')}
+                                className={`flex-1 py-4 ${theme.softBg} ${theme.textValue} rounded-2xl font-bold text-base flex items-center justify-center space-x-2 ${theme.hoverBorder} transition-colors border ${theme.borderHighlight}`}
+                            >
+                                <ShoppingCart size={20} />
+                                <span>View Cart ({cart.reduce((s, i) => s + i.qty, 0)})</span>
+                            </button>
+                            <button
+                                onClick={() => setScreen('checkout')}
+                                className={`flex-1 py-4 ${theme.primary} text-white rounded-2xl font-bold text-base shadow-lg ${theme.shadow} ${theme.primaryHover} transition-colors`}
+                            >
+                                Finish Up
+                            </button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // =========================================================================
+            // SCREEN 6: MANUAL SEARCH
+            // =========================================================================
+            const renderManualInput = () => {
+                const numericKeys = [
+                    ['1', '2', '3'],
+                    ['4', '5', '6'],
+                    ['7', '8', '9'],
+                    ['DEL', '0', 'ENTER']
+                ];
+                const qwertyRows = [
+                    ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'],
+                    ['A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L'],
+                    ['Z', 'X', 'C', 'V', 'B', 'N', 'M', 'DEL'],
+                    ['SPACE', 'ENTER']
+                ];
+
+                const handleKeyPress = (key) => {
+                    if (key === 'DEL') {
+                        setManualInputValue(prev => prev.slice(0, -1));
+                    } else if (key === 'SPACE') {
+                        setManualInputValue(prev => prev + ' ');
+                    } else if (key === 'ENTER') {
+                        setIsKeyboardVisible(false);
+                    } else {
+                        setManualInputValue(prev => prev + key);
+                    }
+                };
+
+                return (
+                    <div className={`flex flex-col flex-1 min-h-0 ${defaultTheme.bg}`}>
+                        <div className="px-5 pt-3 pb-2 flex items-center shrink-0">
+                            <button
+                                onClick={() => setScreen('scanning')}
+                                className="p-2.5 bg-white rounded-full text-gray-600 shadow-xs border border-orange-100 mr-3"
+                            >
+                                <ArrowLeft size={20} />
+                            </button>
+                            <h2 className="text-xl font-bold text-gray-800">Manual Search</h2>
+                        </div>
+
+                        <div className="flex-1 flex flex-col pt-1 min-h-0 relative">
+                            {/* Mode Toggle */}
+                            <div className="px-5 mb-3 shrink-0">
+                                <div className="flex bg-gray-100 p-1 rounded-xl border border-gray-200">
+                                    <button
+                                        onClick={() => { setManualInputType('barcode'); setManualInputValue(''); }}
+                                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg flex items-center justify-center space-x-2 transition-all ${
+                                            manualInputType === 'barcode'
+                                                ? 'bg-white shadow-xs text-orange-600 border border-orange-200'
+                                                : 'text-gray-500'
+                                        }`}
+                                    >
+                                        <ScanLine size={16} />
+                                        <span>Barcode No.</span>
+                                    </button>
+                                    <button
+                                        onClick={() => { setManualInputType('name'); setManualInputValue(''); }}
+                                        className={`flex-1 py-2.5 text-sm font-bold rounded-lg flex items-center justify-center space-x-2 transition-all ${
+                                            manualInputType === 'name'
+                                                ? 'bg-white shadow-xs text-orange-600 border border-orange-200'
+                                                : 'text-gray-500'
+                                        }`}
+                                    >
+                                        <Type size={16} />
+                                        <span>Product Name</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="px-5 flex-1 flex flex-col min-h-0">
+                                <label className="block text-orange-600 text-xs font-bold uppercase tracking-wider mb-1.5 shrink-0">
+                                    {manualInputType === 'barcode' ? 'Enter Barcode Numbers' : 'Enter Product Name'}
+                                </label>
+
+                                <div
+                                    onClick={() => setIsKeyboardVisible(true)}
+                                    className="relative shrink-0 mb-3 flex items-center justify-start text-left overflow-hidden rounded-2xl bg-white border-2 border-orange-200 focus-within:border-orange-500 shadow-inner pl-3 pr-4 py-3.5 cursor-text"
+                                >
+                                    <div className="flex items-center justify-start w-full overflow-hidden whitespace-nowrap">
+                                        {manualInputValue ? (
+                                            <>
+                                                <span className="text-2xl font-bold text-gray-800 text-left">
+                                                    {manualInputValue}
+                                                </span>
+                                                <div className="w-0.5 h-8 bg-orange-500 animate-pulse ml-0.5 shrink-0"></div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="w-0.5 h-8 bg-orange-500 animate-pulse mr-1 shrink-0"></div>
+                                                <span className="text-2xl font-bold text-gray-300 text-left">
+                                                    {manualInputType === 'barcode' ? 'Enter barcode...' : 'Enter product name...'}
+                                                </span>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {manualInputValue.trim() !== '' && searchResults.length === 0 ? (
+                                    <div className="bg-white/90 rounded-2xl border border-orange-100 p-4 text-center text-xs font-bold text-gray-400 mb-3">
+                                        No matching items in the system.
+                                    </div>
+                                ) : (
+                                    <div className={`overflow-y-auto bg-white rounded-2xl border-orange-200 shadow-xs transition-all flex flex-col ${
+                                        searchResults.length > 0 ? 'border opacity-100 mb-3 flex-1' : 'border-none opacity-0 h-0 overflow-hidden'
+                                    }`}>
+                                        {searchResults.map((item) => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => triggerItemScanned(item, 'manual_input')}
+                                                className="w-full text-left p-3.5 border-b border-orange-50 hover:bg-orange-50/70 transition-colors flex justify-between items-center last:border-0 shrink-0"
+                                            >
+                                                <div className="flex-1 pr-3 min-w-0">
+                                                    <p className="font-bold text-gray-800 text-xs truncate">{item.name}</p>
+                                                    <p className="text-[11px] text-gray-400 font-mono mt-0.5 truncate">
+                                                        {item.id} • {item.category}
+                                                    </p>
+                                                </div>
+                                                <div className="bg-orange-100 border border-orange-200 px-2.5 py-1 rounded-xl shrink-0">
+                                                    <p className="font-black text-orange-600 text-sm">
+                                                        ₱{formatNumberWithCommas(item.price.toFixed(2))}
+                                                    </p>
+                                                </div>
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Collapsible Custom Keyboard */}
+                            <div className="mt-auto shrink-0 flex flex-col relative z-20">
+                                <div className="flex justify-end px-5 relative mb-[-1px] z-30">
+                                    <button
+                                        onClick={() => setIsKeyboardVisible(!isKeyboardVisible)}
+                                        className="bg-gray-300 text-gray-700 px-5 py-1.5 rounded-t-xl flex items-center justify-center hover:bg-gray-400 transition-colors"
+                                    >
+                                        {isKeyboardVisible ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                                    </button>
+                                </div>
+
+                                <div className={`bg-gray-200/80 border-t border-gray-300 transition-all duration-300 overflow-hidden ${
+                                    isKeyboardVisible ? 'max-h-[260px] pb-4 pt-3 px-2 opacity-100' : 'max-h-0 p-0 opacity-0 border-transparent'
+                                }`}>
+                                    {manualInputType === 'barcode' ? (
+                                        <div className="flex flex-col space-y-1.5 max-w-[300px] mx-auto">
+                                            {numericKeys.map((row, rowIndex) => (
+                                                <div key={rowIndex} className="flex justify-center space-x-1.5">
+                                                    {row.map(key => (
+                                                        <button
+                                                            key={key}
+                                                            onClick={() => handleKeyPress(key)}
+                                                            className={`h-11 flex-1 rounded-xl shadow-xs active:scale-95 transition-all flex items-center justify-center text-lg font-bold ${
+                                                                key === 'ENTER'
+                                                                    ? 'bg-orange-500 text-white'
+                                                                    : key === 'DEL'
+                                                                        ? 'bg-gray-300 text-gray-700 text-sm'
+                                                                        : 'bg-white text-gray-800'
+                                                            }`}
+                                                        >
+                                                            {key === 'DEL' ? <Delete size={18} /> : key === 'ENTER' ? 'Go' : key}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col space-y-1.5">
+                                            {qwertyRows.map((row, rowIndex) => (
+                                                <div key={rowIndex} className="flex justify-center space-x-1 w-full">
+                                                    {row.map(key => (
+                                                        <button
+                                                            key={key}
+                                                            onClick={() => handleKeyPress(key)}
+                                                            style={key === 'SPACE' ? { flex: 3 } : key === 'ENTER' ? { flex: 1.5 } : { flex: 1 }}
+                                                            className={`h-10 rounded-lg shadow-xs active:scale-95 transition-all flex items-center justify-center text-sm font-bold px-1 ${
+                                                                key === 'ENTER'
+                                                                    ? 'bg-orange-500 text-white'
+                                                                    : key === 'DEL'
+                                                                        ? 'bg-gray-300 text-gray-700'
+                                                                        : 'bg-white text-gray-800'
+                                                            }`}
+                                                        >
+                                                            {key === 'DEL' ? <Delete size={16} /> : key === 'ENTER' ? 'Search' : key === 'SPACE' ? 'Space' : key}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            // =========================================================================
+            // SCREEN 7: ITEM SCANNED / QUANTITY ADJUSTMENT
+            // =========================================================================
+            const renderItemScanned = () => {
+                if (!scannedItem) return null;
+
+                const getStockColor = (status) => {
+                    if (status === 'High Stock') return 'bg-green-50 text-green-700 border-green-200';
+                    if (status === 'Moderate Stock') return 'bg-yellow-50 text-yellow-700 border-yellow-200';
+                    return 'bg-red-50 text-red-700 border-red-200';
+                };
+
+                return (
+                    <div className={`flex flex-col flex-1 min-h-0 ${theme.bg} p-5 justify-center overflow-y-auto`}>
+                        <div className={`bg-white p-6 rounded-[2rem] shadow-xl ${theme.shadow} border ${theme.softBg} flex flex-col items-center relative`}>
+                            <button
+                                onClick={() => setScreen(scanOrigin)}
+                                className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <X size={22} />
+                            </button>
+
+                            <div className="flex items-center space-x-2 mb-4">
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStockColor(scannedItem.stock)}`}>
+                                    {scannedItem.stock}
+                                </span>
+                                <span className="px-3 py-1 rounded-full text-xs font-bold bg-orange-50 text-orange-700 border border-orange-200">
+                                    {scannedItem.category}
+                                </span>
+                            </div>
+
+                            <h2 className="text-xl font-bold text-center mb-3 text-gray-800 leading-snug px-4">
+                                {scannedItem.name}
+                            </h2>
+
+                            <div className={`${theme.iconBg} border ${theme.borderHighlight} px-5 py-2 rounded-2xl mb-5`}>
+                                <p className={`text-3xl font-black ${theme.textValue}`}>
+                                    ₱{formatNumberWithCommas(scannedItem.price.toFixed(2))}
+                                </p>
+                            </div>
+
+                            {/* Quantity Selector */}
+                            <div className="flex items-center justify-between w-full max-w-[210px] bg-gray-50 rounded-2xl p-1.5 mb-5 border border-gray-100">
+                                <button
+                                    onClick={() => setItemQty(Math.max(1, itemQty - 1))}
+                                    className="w-11 h-11 bg-white rounded-xl shadow-xs border border-gray-100 flex items-center justify-center text-gray-600 active:scale-95"
+                                >
+                                    <Minus size={20} />
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        setEditingCartItemId(null);
+                                        setQtyInputStr(itemQty.toString());
+                                        setIsQtyPadVisible(true);
+                                    }}
+                                    className="text-2xl font-bold w-16 h-11 flex items-center justify-center text-gray-800 bg-white rounded-xl shadow-xs border border-orange-200 hover:bg-orange-50"
+                                >
+                                    {itemQty}
+                                </button>
+                                <button
+                                    onClick={() => setItemQty(itemQty + 1)}
+                                    className="w-11 h-11 bg-white rounded-xl shadow-xs border border-gray-100 flex items-center justify-center text-gray-600 active:scale-95"
+                                >
+                                    <Plus size={20} />
+                                </button>
+                            </div>
+
+                            <div className="w-full flex justify-between items-center mb-5 px-2 text-gray-500 font-bold text-base border-t border-dashed border-gray-200 pt-4">
+                                <span>Subtotal:</span>
+                                <span className={`text-xl ${theme.textValue} font-black ${theme.softBg} border ${theme.borderHighlight} px-3 py-1 rounded-xl`}>
+                                    ₱{formatNumberWithCommas((scannedItem.price * itemQty).toFixed(2))}
+                                </span>
+                            </div>
+
+                            <button
+                                onClick={handleAddToCart}
+                                className={`w-full py-4 ${theme.primary} text-white rounded-2xl font-bold text-lg shadow-lg ${theme.shadow} ${theme.primaryHover} active:scale-95 transition-all`}
+                            >
+                                Add to Cart
+                            </button>
+                            <button
+                                onClick={() => setScreen(scanOrigin)}
+                                className="w-full py-3 bg-gray-50 text-gray-500 border border-gray-100 rounded-2xl font-bold text-sm hover:bg-gray-100 transition-colors mt-2.5"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                );
+            };
+
+            // =========================================================================
+            // SCREEN 8: YOUR CART
+            // =========================================================================
+            const renderCart = () => (
+                <div className={`flex flex-col flex-1 min-h-0 ${theme.bg}`}>
+                    <div className="px-5 pt-3 pb-2 shrink-0">
+                        <div className="flex items-center mb-2">
+                            <button
+                                onClick={() => setScreen('scanning')}
+                                className="p-2.5 bg-white rounded-full text-gray-600 shadow-xs border border-orange-100 mr-3"
+                            >
+                                <ArrowLeft size={20} />
+                            </button>
+                            <h2 className="text-xl font-bold text-gray-800">Your Cart</h2>
+                        </div>
+
+                        {budgetMode !== 'none' && (
+                            <div className={`${theme.softBg} border ${theme.borderHighlight} px-4 py-3 rounded-2xl flex justify-between items-center`}>
+                                <div>
+                                    <p className={`text-[10px] ${theme.textValue} font-bold uppercase tracking-wider`}>Set Budget</p>
+                                    <p className="text-lg font-black text-gray-800">
+                                        ₱{formatNumberWithCommas(effectiveBudget.toFixed(2))}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Remaining</p>
+                                    <p className={`text-lg font-black ${effectiveBudget - cartTotal < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                                        ₱{formatNumberWithCommas((effectiveBudget - cartTotal).toFixed(2))}
+                                    </p>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto px-5 py-2 space-y-2.5">
+                        {cart.length === 0 ? (
+                            <div className={`h-full flex flex-col items-center justify-center ${theme.textValue} opacity-60`}>
+                                <ShoppingCart size={54} className="mb-4" />
+                                <p className="text-lg font-bold">Your cart is empty</p>
+                            </div>
+                        ) : (
+                            cart.map((item) => (
+                                <div key={item.id} className={`bg-white p-4 rounded-2xl shadow-xs border ${theme.softBg} flex flex-col space-y-2.5`}>
+                                    <div className="flex justify-between items-start gap-2">
+                                        <div className="min-w-0 flex-1">
+                                            <h3 className="font-bold text-gray-800 text-sm leading-snug truncate">{item.name}</h3>
+                                            <p className="text-[11px] font-semibold text-gray-400 mt-0.5">
+                                                ₱{formatNumberWithCommas(item.price.toFixed(2))} each • {item.category}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => handleRemoveFromCart(item.id)}
+                                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0"
+                                        >
+                                            <Trash2 size={18} />
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                                        <div className="flex items-center space-x-2 bg-gray-50 p-1 rounded-xl border border-gray-200">
+                                            <button
+                                                onClick={() => updateCartItemQty(item.id, -1)}
+                                                className="w-7 h-7 bg-white rounded-lg shadow-2xs flex items-center justify-center text-gray-700 active:scale-90"
+                                            >
+                                                <Minus size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setEditingCartItemId(item.id);
+                                                    setQtyInputStr(item.qty.toString());
+                                                    setIsQtyPadVisible(true);
+                                                }}
+                                                className="px-2.5 text-sm font-black text-gray-800"
+                                            >
+                                                {item.qty}
+                                            </button>
+                                            <button
+                                                onClick={() => updateCartItemQty(item.id, 1)}
+                                                className="w-7 h-7 bg-white rounded-lg shadow-2xs flex items-center justify-center text-gray-700 active:scale-90"
+                                            >
+                                                <Plus size={14} />
+                                            </button>
+                                        </div>
+
+                                        <div className={`${theme.iconBg} border ${theme.borderHighlight} px-3 py-1 rounded-xl`}>
+                                            <p className={`font-black text-base ${theme.textValue}`}>
+                                                ₱{formatNumberWithCommas((item.price * item.qty).toFixed(2))}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+
+                    <div className={`bg-white p-4 rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] border-t ${theme.border} shrink-0`}>
+                        <div className="flex justify-between items-baseline mb-3">
+                            <span className="text-gray-500 font-bold text-sm">
+                                Total ({cart.reduce((s, i) => s + i.qty, 0)} items)
+                            </span>
+                            <span className="text-2xl font-black text-gray-800">
+                                ₱{formatNumberWithCommas(cartTotal.toFixed(2))}
+                            </span>
+                        </div>
+                        <button
+                            onClick={() => cart.length > 0 && setScreen('checkout')}
+                            className={`w-full py-4 rounded-2xl font-bold text-lg transition-all shadow-lg ${
+                                cart.length > 0
+                                    ? `${theme.primary} text-white ${theme.primaryHover} ${theme.shadow}`
+                                    : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            }`}
+                        >
+                            Lock & Finish
+                        </button>
+                    </div>
+                </div>
+            );
+
+            // =========================================================================
+            // SCREEN 9: FINISH UP
+            // =========================================================================
+            const renderCheckout = () => (
+                <div className={`flex flex-col flex-1 min-h-0 ${defaultTheme.bg}`}>
+                    <div className={`${defaultTheme.primary} pt-4 pb-5 px-5 shadow-md z-10 relative text-white rounded-b-[2rem] shrink-0`}>
+                        <div className="grid grid-cols-3 items-center mb-4">
+                            <div className="flex justify-start">
+                                <button
+                                    onClick={() => setScreen('scanning')}
+                                    className="px-4 py-2 bg-white/20 hover:bg-white/30 active:scale-95 rounded-2xl text-white font-extrabold text-base flex items-center space-x-1.5 transition-all"
+                                >
+                                    <ArrowLeft size={20} />
+                                    <span>Back</span>
+                                </button>
+                            </div>
+                            <h2 className="text-xl font-black text-center tracking-wide">Finish Up</h2>
+                            <div></div>
+                        </div>
+
+                        <p className="text-white/80 text-xs font-bold uppercase tracking-wider mb-1 text-center">
+                            Total Bill to Pay
+                        </p>
+                        <h1 className="text-4xl font-black tracking-tight text-center truncate">
+                            ₱{formatNumberWithCommas(cartTotal.toFixed(2))}
+                        </h1>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto px-5 py-4">
+                        <h3 className="font-bold text-gray-700 mb-3 flex items-center text-sm uppercase tracking-wider">
+                            <ScanLine size={18} className="mr-2 text-orange-600" /> Final Item List
+                        </h3>
+
+                        <div className="bg-white rounded-2xl shadow-xs border border-orange-200 overflow-hidden">
+                            {cart.length === 0 ? (
+                                <p className="p-6 text-center text-sm font-semibold text-gray-400">No items scanned yet.</p>
+                            ) : (
+                                cart.map((item, index) => (
+                                    <div key={index} className="p-4 border-b border-gray-100 flex justify-between items-center last:border-0">
+                                        <div className="flex-1 pr-3 min-w-0">
+                                            <h4 className="font-bold text-gray-800 text-sm truncate">{item.name}</h4>
+                                            <p className="text-xs font-medium text-gray-500 mt-0.5">
+                                                Qty: {item.qty} × ₱{formatNumberWithCommas(item.price.toFixed(2))}
+                                            </p>
+                                        </div>
+                                        <div className="bg-orange-50 border border-orange-200 px-3 py-1 rounded-xl shrink-0">
+                                            <p className="font-black text-orange-600 text-sm">
+                                                ₱{formatNumberWithCommas((item.price * item.qty).toFixed(2))}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-t-[2rem] shadow-[0_-10px_40px_rgba(0,0,0,0.05)] border-t border-orange-100 shrink-0">
+                        <button
+                            onClick={() => setScreen('thank_you')}
+                            className="w-full py-4 bg-orange-500 text-white rounded-2xl font-bold text-lg shadow-xl shadow-orange-200 hover:bg-orange-600 active:scale-95 transition-all flex items-center justify-center space-x-2"
+                        >
+                            <CheckCircle2 size={24} />
+                            <span>Confirm & Exit</span>
+                        </button>
+                    </div>
+                </div>
+            );
+
+            // =========================================================================
+            // SCREEN 10: THANK YOU / ENDING
+            // =========================================================================
+            const renderThankYou = () => (
+                <div className="flex flex-col h-full bg-[#FFF9F5] items-center justify-center px-8 text-center animate-in fade-in duration-500">
+                    <div className="w-28 h-28 bg-white shadow-xl shadow-orange-200 border border-orange-200 rounded-full flex items-center justify-center mb-8">
+                        <CheckCircle2 size={56} className="text-orange-500" />
+                    </div>
+                    <h2 className="text-3xl font-black mb-3 text-orange-950">Thank You!</h2>
+                    <p className="text-gray-500 text-base mb-8 leading-relaxed">
+                        Your shopping session is complete and all session data has been cleared.
+                    </p>
+
+                    <div className="bg-white px-5 py-3 rounded-2xl border border-orange-100 shadow-xs flex items-center space-x-2 text-gray-500">
+                        <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping"></span>
+                        <p className="text-xs font-extrabold uppercase tracking-widest">
+                            Returning to start in {thankYouSeconds}s
+                        </p>
+                    </div>
+                </div>
+            );
+
+            // =========================================================================
+            // POPUP OVERLAYS
+            // =========================================================================
+            const renderWarning70Popup = () => (
+                <div className="absolute inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-5 animate-in fade-in duration-200">
+                    <div className="bg-white p-6 rounded-[2rem] w-full max-w-xs flex flex-col items-center text-center shadow-2xl border-4 border-yellow-400">
+                        <div className="w-16 h-16 bg-yellow-100 rounded-2xl flex items-center justify-center mb-4 border border-yellow-200">
+                            <AlertCircle size={36} className="text-yellow-600" />
+                        </div>
+                        <h2 className="text-2xl font-black mb-2 text-gray-800">Budget Alert!</h2>
+                        <p className="text-gray-600 text-sm mb-6 leading-relaxed font-medium">
+                            {alertMessage || 'You have reached 70% of your budget. Spend wisely!'}
+                        </p>
+                        <button
+                            onClick={() => setPopupAlert(null)}
+                            className="w-full py-3.5 bg-yellow-500 text-white rounded-2xl font-bold text-base shadow-md hover:bg-yellow-600 active:scale-95 transition-all"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            );
+
+            const renderBudgetAlertPopup = () => (
+                <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-5 animate-in fade-in duration-200">
+                    <div className="bg-white p-5 rounded-[2rem] w-full max-w-xs flex flex-col items-center text-center shadow-2xl border-4 border-red-500">
+                        <div className="w-14 h-14 bg-red-100 rounded-2xl flex items-center justify-center mb-3 border border-red-200">
+                            <AlertCircle size={32} className="text-red-500" />
+                        </div>
+                        <h2 className="text-xl font-black mb-1 text-gray-800">Budget Limit Reached!</h2>
+                        <p className="text-gray-500 text-xs mb-4">
+                            Adding this item exceeds your total budget of{' '}
+                            <span className="font-bold text-red-600">
+                                ₱{formatNumberWithCommas(effectiveBudget.toFixed(2))}
+                            </span>
+                        </p>
+
+                        <div className="bg-red-50 border border-red-100 p-3 rounded-2xl w-full mb-4 text-xs">
+                            <div className="flex justify-between mb-1 text-gray-600">
+                                <span>Current Total:</span>
+                                <span className="font-bold text-gray-800">₱{formatNumberWithCommas(cartTotal.toFixed(2))}</span>
+                            </div>
+                            <div className="flex justify-between mb-1 text-gray-600">
+                                <span>Item to Add:</span>
+                                <span className="font-bold text-gray-800">₱{formatNumberWithCommas(((scannedItem?.price || 0) * itemQty).toFixed(2))}</span>
+                            </div>
+                            <div className="h-px bg-red-200 my-1.5"></div>
+                            <div className="flex justify-between text-sm font-black text-red-600">
+                                <span>New Total:</span>
+                                <span>₱{formatNumberWithCommas((cartTotal + ((scannedItem?.price || 0) * itemQty)).toFixed(2))}</span>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2 w-full">
+                            {budgetMode === 'single' && (
+                                <button
+                                    onClick={() => {
+                                        setPopupAlert(null);
+                                        setReturnScreen('item_scanned');
+                                        setScreen('budget_input');
+                                    }}
+                                    className="w-full py-3 bg-white text-red-600 border border-red-200 rounded-xl font-bold text-xs hover:bg-red-50"
+                                >
+                                    Edit Budget Amount
+                                </button>
+                            )}
+                            <button
+                                onClick={() => {
+                                    setPopupAlert(null);
+                                    setScreen('cart');
+                                }}
+                                className="w-full py-3 bg-gray-100 text-gray-700 border border-gray-200 rounded-xl font-bold text-xs hover:bg-gray-200"
+                            >
+                                Go to Cart to Adjust
+                            </button>
+                            <button
+                                onClick={() => {
+                                    addToCartState(scannedItem, itemQty);
+                                    setPopupAlert(null);
+                                    setScreen('checkout');
+                                }}
+                                className="w-full py-3 bg-red-500 text-white rounded-xl font-bold text-xs shadow-md hover:bg-red-600"
+                            >
+                                Add Anyway & Finish Up
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setPopupAlert(null);
+                                    setScreen(scanOrigin);
+                                }}
+                                className="w-full py-2 text-gray-500 font-bold text-xs hover:bg-gray-50 rounded-xl"
+                            >
+                                Cancel Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const renderQtyPadPopup = () => {
+                const numKeys = [
+                    ['1', '2', '3'],
+                    ['4', '5', '6'],
+                    ['7', '8', '9'],
+                    ['DEL', '0', 'OK']
+                ];
+
+                const handleKey = (key) => {
+                    if (key === 'DEL') {
+                        setQtyInputStr(prev => (prev.length > 1 ? prev.slice(0, -1) : '0'));
+                    } else if (key === 'OK') {
+                        const num = Math.max(1, parseInt(qtyInputStr || '1', 10));
+                        if (editingCartItemId) {
+                            setCart(prev => prev.map(item => item.id === editingCartItemId ? { ...item, qty: num } : item));
+                            setEditingCartItemId(null);
+                        } else {
+                            setItemQty(num);
+                        }
+                        setIsQtyPadVisible(false);
+                    } else {
+                        setQtyInputStr(prev => {
+                            if (prev === '0') return key;
+                            if (prev.length >= 3) return prev;
+                            return prev + key;
+                        });
+                    }
+                };
+
+                const adjustStr = (delta) => {
+                    const num = parseInt(qtyInputStr || '1', 10);
+                    setQtyInputStr(Math.max(1, num + delta).toString());
+                };
+
+                return (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-5 animate-in fade-in duration-200">
+                        <div className={`bg-white p-5 rounded-[2rem] w-full max-w-xs flex flex-col shadow-2xl border-4 ${theme.borderHighlight}`}>
+                            <h3 className="text-center font-bold text-gray-400 mb-4 uppercase tracking-wider text-xs">
+                                Set Quantity
+                            </h3>
+
+                            <div className="flex items-center justify-center space-x-5 mb-5">
+                                <button
+                                    onClick={() => adjustStr(-1)}
+                                    className={`p-3 ${theme.softBg} ${theme.textValue} rounded-xl active:scale-95`}
+                                >
+                                    <ChevronDown size={24} strokeWidth={3} />
+                                </button>
+                                <div className="text-4xl font-black w-20 text-center text-gray-800">{qtyInputStr || '1'}</div>
+                                <button
+                                    onClick={() => adjustStr(1)}
+                                    className={`p-3 ${theme.softBg} ${theme.textValue} rounded-xl active:scale-95`}
+                                >
+                                    <ChevronUp size={24} strokeWidth={3} />
+                                </button>
+                            </div>
+
+                            <div className="flex flex-col space-y-2">
+                                {numKeys.map((row, i) => (
+                                    <div key={i} className="flex space-x-2">
+                                        {row.map(key => (
+                                            <button
+                                                key={key}
+                                                onClick={() => handleKey(key)}
+                                                className={`h-12 flex-1 rounded-xl font-bold text-lg border border-gray-100 active:scale-95 transition-all flex items-center justify-center ${
+                                                    key === 'DEL'
+                                                        ? 'bg-gray-100 text-gray-600'
+                                                        : key === 'OK'
+                                                            ? `${theme.primary} text-white`
+                                                            : 'bg-white text-gray-800 hover:bg-orange-50'
+                                                }`}
+                                            >
+                                                {key === 'DEL' ? <Delete size={20} /> : key === 'OK' ? <CheckCircle2 size={22} /> : key}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            // =========================================================================
+            // MAIN KIOSK / MONITOR SHELL RENDERER
+            // =========================================================================
+            return (
+                <div className="min-h-screen bg-neutral-200 py-4 sm:py-8 flex items-center justify-center font-sans px-3">
+                    <div className="w-full max-w-[480px] h-[760px] max-h-[94vh] bg-white rounded-[2.5rem] shadow-2xl shadow-neutral-400 border-[14px] border-[#1c1c1e] relative overflow-hidden flex flex-col">
+
+                        {/* Persistent Header on all screens except startup & ending */}
+                        {showPersistentHeader && <TopHeader />}
+
+                        {/* Screen Router */}
+                        {screen === 'splash1' && renderSplash1()}
+                        {screen === 'privacy_consent' && renderPrivacyConsent()}
+                        {screen === 'tutorial' && renderTutorial()}
+                        {screen === 'budget_prompt' && renderBudgetPrompt()}
+                        {screen === 'budget_input' && renderBudgetInput()}
+                        {screen === 'allocation_setup' && renderAllocationSetup()}
+                        {screen === 'allocation_select_category' && renderAllocationSelectCategory()}
+                        {screen === 'scanning' && renderScanning()}
+                        {screen === 'manual_input' && renderManualInput()}
+                        {screen === 'item_scanned' && renderItemScanned()}
+                        {screen === 'cart' && renderCart()}
+                        {screen === 'checkout' && renderCheckout()}
+                        {screen === 'thank_you' && renderThankYou()}
+
+                        {/* Global Overlay Modals */}
+                        {popupAlert === 'warning70' && renderWarning70Popup()}
+                        {popupAlert === 'limit' && renderBudgetAlertPopup()}
+                        {isQtyPadVisible && renderQtyPadPopup()}
+
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
